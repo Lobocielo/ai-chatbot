@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "ai-chatbot-backend"
+version = "1.0.0"
+description = "AI Chatbot Backend with FastAPI and RAG"
+authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+fastapi = "^0.104.1"
+uvicorn = "^0.24.0"
+sentence-transformers = "^2.2.2"
+numpy = "^1.24.3"
+libsql-experimental = "^0.0.34"
+pydantic = "^2.5.0"
+python-dotenv = "^1.0.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.4.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
