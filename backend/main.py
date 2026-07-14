@@ -1,12 +1,17 @@
+import os
+os.environ["HF_HUB_OFFLINE"] = "1"
+
+from dotenv import load_dotenv
+load_dotenv("config/.env")
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-import os
-from datetime import datetime
+import logging
 
-from .rag import RAGSystem
-from .database import Database
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AI Chatbot API", version="1.0.0")
 
@@ -26,12 +31,20 @@ class ChatResponse(BaseModel):
     response: str
     sources: Optional[List[dict]] = None
 
-rag = RAGSystem()
-db = Database()
+rag = None
+db = None
 
 @app.on_event("startup")
 async def startup():
+    global rag, db
+    logger.info("Starting up...")
+    from .database import Database
+    from .rag import RAGSystem
+    db = Database()
     await db.init_db()
+    logger.info("Database initialized")
+    rag = RAGSystem()
+    logger.info("RAG system ready")
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -47,6 +60,7 @@ async def chat(request: ChatRequest):
         
         return ChatResponse(response=response, sources=context)
     except Exception as e:
+        logger.error(f"Chat error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")

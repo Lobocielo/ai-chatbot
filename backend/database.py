@@ -1,75 +1,77 @@
-import libsql_experimental as libsql
+import requests
+import json
 import os
-from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 class Database:
     def __init__(self):
-        self.url = os.getenv("TURSO_DB_URL")
-        self.auth_token = os.getenv("TURSO_AUTH_TOKEN")
-        self.conn = None
+        raw_url = os.getenv("TURSO_DB_URL", "")
+        self.db_url = raw_url.replace("libsql://", "https://")
+        self.auth_token = os.getenv("TURSO_AUTH_TOKEN", "")
+    
+    def _pipeline(self, statements):
+        url = f"{self.db_url}/v2/pipeline"
+        headers = {
+            "Authorization": f"Bearer {self.auth_token}",
+            "Content-Type": "application/json"
+        }
+        resp = requests.post(url, headers=headers, json={"requests": statements})
+        return resp.json()
     
     async def init_db(self):
-        if self.url and self.auth_token:
-            self.conn = libsql.connect(
-                database=self.url,
-                auth_token=self.auth_token
-            )
-        else:
-            self.conn = libsql.connect("local.db")
-        
-        await self._create_tables()
-    
-    async def _create_tables(self):
-        self.conn.execute("""
-            CREATE TABLE IF NOT EXISTS memoria (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_input TEXT NOT NULL,
-                response TEXT NOT NULL,
-                embedding BLOB,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        self.conn.commit()
+        sql = """CREATE TABLE IF NOT EXISTS memoria (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_input TEXT NOT NULL,
+            response TEXT NOT NULL,
+            embedding BLOB,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )"""
+        self._pipeline([{"type": "execute", "stmt": {"sql": sql}}])
     
     async def save_memory(self, user_input: str, response: str, embedding: List[float]):
-        import json
-        
         existing = await self.check_duplicate(user_input)
         if existing:
             return
         
         embedding_json = json.dumps(embedding) if embedding else None
         
-        self.conn.execute(
-            "INSERT INTO memoria (user_input, response, embedding) VALUES (?, ?, ?)",
-            [user_input, response, embedding_json]
-        )
-        self.conn.commit()
+        self._pipeline([{
+            "type": "execute",
+            "stmt": {
+                "sql": "INSERT INTO memoria (user_input, response, embedding) VALUES (?, ?, ?)",
+                "args": [{"type": "text", "value": user_input}, {"type": "text", "value": response}, {"type": "text", "value": embedding_json}]
+            }
+        }])
     
     async def check_duplicate(self, user_input: str) -> bool:
-        cursor = self.conn.execute(
-            "SELECT COUNT(*) FROM memoria WHERE user_input = ?",
-            [user_input]
-        )
-        result = cursor.fetchone()
-        return result[0] > 0
+        result = self._pipeline([{
+            "type": "execute",
+            "stmt": {
+                "sql": "SELECT COUNT(*) FROM memoria WHERE user_input = ?",
+                "args": [{"type": "text", "value": user_input}]
+            }
+        }])
+        try:
+            rows = result["results"][0]["response"]["result"]["rows"]
+            return rows[0][0] > 0
+        except:
+            return False
     
     async def get_all_memories(self) -> List[Dict]:
-        import json
-        
-        cursor = self.conn.execute(
-            "SELECT user_input, response, embedding FROM memoria ORDER BY timestamp DESC LIMIT 100"
-        )
-        rows = cursor.fetchall()
-        
-        memories = []
-        for row in rows:
-            embedding = json.loads(row[2]) if row[2] else None
-            memories.append({
-                "user_input": row[0],
-                "response": row[1],
-                "embedding": embedding
-            })
-        
-        return memories
+        result = self._pipeline([{
+            "type": "execute",
+            "stmt": {"sql": "SELECT user_input, response, embedding FROM memoria ORDER BY timestamp DESC LIMIT 100"}
+        }])
+        try:
+            rows = result["results"][0]["response"]["result"]["rows"]
+            memories = []
+            for row in rows:
+                embedding = json.loads(row[2]) if row[2] else None
+                memories.append({
+                    "user_input": row[0],
+                    "response": row[1],
+                    "embedding": embedding
+                })
+            return memories
+        except:
+            return []
