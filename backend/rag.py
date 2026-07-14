@@ -12,10 +12,8 @@ from .database import Database
 logger = logging.getLogger(__name__)
 
 MODEL_PATH = os.path.join(
-    os.path.expanduser("~"),
-    ".cache", "huggingface", "hub",
-    "models--sentence-transformers--all-MiniLM-L6-v2",
-    "snapshots", "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "models", "all-MiniLM-L6-v2"
 )
 
 class RAGSystem:
