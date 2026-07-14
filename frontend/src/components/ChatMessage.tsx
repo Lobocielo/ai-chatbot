@@ -13,15 +13,15 @@ export default function ChatMessage({ message }: { message: Message }) {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-xs md:max-w-md lg:max-w-lg rounded-lg px-4 py-2 ${
+        className={`max-w-[80%] rounded-2xl px-5 py-3 ${
           isUser
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-700 text-gray-100'
+            ? 'bg-blue-600 text-white rounded-br-md'
+            : 'bg-gray-700 text-gray-100 rounded-bl-md'
         }`}
       >
-        <ReactMarkdown className="prose prose-invert prose-sm">
-          {message.content}
-        </ReactMarkdown>
+        <div className="text-sm leading-relaxed">
+          <ReactMarkdown>{message.content}</ReactMarkdown>
+        </div>
       </div>
     </div>
   )

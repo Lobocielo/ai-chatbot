@@ -1,5 +1,6 @@
 import os
 os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 from dotenv import load_dotenv
 load_dotenv("config/.env")
@@ -43,12 +44,19 @@ async def startup():
     db = Database()
     await db.init_db()
     logger.info("Database initialized")
-    rag = RAGSystem()
-    logger.info("RAG system ready")
+    try:
+        rag = RAGSystem()
+        logger.info("RAG system ready")
+    except Exception as e:
+        logger.error(f"RAG init failed: {e}")
+        rag = None
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
+        if rag is None:
+            return ChatResponse(response=f"Backend respondiendo a: {request.message}", sources=[])
+        
         context = await rag.retrieve_context(request.message)
         response = await rag.generate_response(request.message, context)
         

@@ -23,28 +23,30 @@ export default function Home() {
   }, [messages])
 
   const sendMessage = async (content: string) => {
-    if (!content.trim()) return
+    if (!content.trim() || loading) return
 
     const userMessage: Message = { role: 'user', content }
     setMessages(prev => [...prev, userMessage])
     setLoading(true)
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/chat`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${apiUrl}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: content })
       })
 
+      if (!response.ok) throw new Error('Error del servidor')
+
       const data = await response.json()
-      
       const assistantMessage: Message = { role: 'assistant', content: data.response }
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       console.error('Error:', error)
-      const errorMessage: Message = { 
-        role: 'assistant', 
-        content: 'Lo siento, hubo un error al procesar tu mensaje.' 
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: 'Error: No se pudo conectar al backend. Asegurate de que esté corriendo en localhost:8000'
       }
       setMessages(prev => [...prev, errorMessage])
     } finally {
@@ -53,34 +55,43 @@ export default function Home() {
   }
 
   return (
-    <main className="flex flex-col h-screen bg-gray-900">
-      <header className="bg-gray-800 text-white p-4 shadow-lg">
-        <h1 className="text-xl font-bold">AI Chatbot</h1>
+    <div className="flex flex-col h-screen bg-gray-900">
+      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
+        <h1 className="text-xl font-bold text-white">AI Chatbot</h1>
         <p className="text-sm text-gray-400">Con memoria persistente y RAG</p>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <main className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center text-gray-500 mt-20">
-            <p className="text-lg">Bienvenido al Chatbot con IA</p>
-            <p className="text-sm">Escribe un mensaje para comenzar</p>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="text-6xl mb-4">🤖</div>
+              <h2 className="text-2xl font-bold text-white mb-2">Bienvenido</h2>
+              <p className="text-gray-400">Escribe un mensaje para comenzar</p>
+            </div>
           </div>
         )}
-        
+
         {messages.map((message, index) => (
           <ChatMessage key={index} message={message} />
         ))}
-        
+
         {loading && (
-          <div className="flex justify-center">
-            <div className="animate-pulse text-gray-400">Pensando...</div>
+          <div className="flex justify-start">
+            <div className="bg-gray-700 rounded-lg px-4 py-3">
+              <div className="flex space-x-1">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+            </div>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
-      </div>
+      </main>
 
       <ChatInput onSend={sendMessage} disabled={loading} />
-    </main>
+    </div>
   )
 }

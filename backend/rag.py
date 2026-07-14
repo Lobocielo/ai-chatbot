@@ -1,15 +1,30 @@
+import os
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from typing import List, Dict
-import os
+import logging
 
 from .database import Database
 
+logger = logging.getLogger(__name__)
+
+MODEL_PATH = os.path.join(
+    os.path.expanduser("~"),
+    ".cache", "huggingface", "hub",
+    "models--sentence-transformers--all-MiniLM-L6-v2",
+    "snapshots", "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
+)
+
 class RAGSystem:
     def __init__(self):
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        logger.info(f"Loading model from: {MODEL_PATH}")
+        self.model = SentenceTransformer(MODEL_PATH)
         self.db = Database()
         self.top_k = 5
+        logger.info("Model loaded successfully")
     
     async def get_embedding(self, text: str) -> List[float]:
         embedding = self.model.encode(text)
@@ -17,7 +32,6 @@ class RAGSystem:
     
     async def retrieve_context(self, query: str) -> List[Dict]:
         query_embedding = await self.get_embedding(query)
-        
         memories = await self.db.get_all_memories()
         
         if not memories:
@@ -30,7 +44,6 @@ class RAGSystem:
                 similarities.append((memory, sim))
         
         similarities.sort(key=lambda x: x[1], reverse=True)
-        
         top_results = similarities[:self.top_k]
         
         return [
@@ -46,7 +59,7 @@ class RAGSystem:
     def _cosine_similarity(self, a: List[float], b: List[float]) -> float:
         a = np.array(a)
         b = np.array(b)
-        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+        return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
     
     async def generate_response(self, query: str, context: List[Dict]) -> str:
         if context:
@@ -54,10 +67,6 @@ class RAGSystem:
                 f"Usuario: {c['user_input']}\nRespuesta: {c['response']}"
                 for c in context
             ])
-            prompt = f"Contexto de conversaciones anteriores:\n{context_text}\n\nPregunta actual: {query}\n\nRespuesta:"
-        else:
-            prompt = f"Pregunta: {query}\n\nRespuesta:"
+            return f"Basado en conversaciones previas:\n{context_text}\n\nTu pregunta: {query}"
         
-        # Placeholder para integración con modelo de IA
-        # En producción, aquí iría la llamada al modelo
-        return f"Respuesta generada para: {query}"
+        return f"Recibido tu mensaje: {query}"

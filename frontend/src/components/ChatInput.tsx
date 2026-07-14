@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, KeyboardEvent } from 'react'
 
 interface ChatInputProps {
   onSend: (message: string) => void
@@ -18,25 +18,35 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
     }
   }
 
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit(e)
+    }
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="p-4 bg-gray-800 border-t border-gray-700">
-      <div className="flex space-x-2">
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Escribe tu mensaje..."
-          disabled={disabled}
-          className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-        />
-        <button
-          type="submit"
-          disabled={disabled || !message.trim()}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Enviar
-        </button>
-      </div>
-    </form>
+    <div className="bg-gray-800 border-t border-gray-700 p-4">
+      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
+        <div className="flex gap-3">
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Escribe tu mensaje..."
+            disabled={disabled}
+            className="flex-1 bg-gray-700 text-white placeholder-gray-400 rounded-xl px-5 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-all"
+          />
+          <button
+            type="submit"
+            disabled={disabled || !message.trim()}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-6 py-3 text-base transition-all active:scale-95"
+          >
+            Enviar
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }
